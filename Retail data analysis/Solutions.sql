@@ -154,16 +154,12 @@ WHERE DATEDIFF(year, DOB, GETDATE()) BETWEEN 25 AND 35
 
 
 -- Which product category has seen the max value of returns in the last 3 months of transactions?
-
-
-
-
--- Which store-type sells the maximum products; by value of sales amount and by quantity sold?
-SELECT TOP 1 Store_type, SUM(total_amt) total_sales, SUM(qty) total_quantity
-FROM transactions
-WHERE total_amt > 0 AND qty > 0
-GROUP BY Store_type
-ORDER BY 2 DESC, 3 DESC
+SELECT TOP 1 prod_cat, t1.prod_cat_code, SUM(ABS(total_amt)) return_prod
+FROM transactions t1
+JOIN prod_cat_info t2 ON t1.prod_cat_code = t2.prod_cat_code
+WHERE tran_date >= DATEADD(month, -3, (SELECT max(tran_date) FROM transactions)) AND total_amt < 0
+GROUP BY t1.prod_cat_code, t2.prod_cat
+ORDER BY 3 DESC
 
 
 
