@@ -117,72 +117,94 @@
 
 --Q8--BEGIN
 	
-	select * from DIM_LOCATION
-	select * from DIM_MANUFACTURER
-	select * from DIM_MODEL
-	select * from FACT_TRANSACTIONS
-	select * from DIM_DATE
-	select * from DIM_CUSTOMER
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	--
+	WITH ManufacturerSales AS (
+    SELECT
+        t4.Manufacturer_Name,
+        YEAR(t2.Date) AS Sales_Year,
+        SUM(t2.TotalPrice) AS Total_Sales,
+        DENSE_RANK() OVER (
+            PARTITION BY YEAR(t2.Date)
+            ORDER BY SUM(t2.TotalPrice) DESC
+        ) AS rnk
+    FROM FACT_TRANSACTIONS t2
+    JOIN DIM_MODEL t3 
+        ON t2.IDModel = t3.IDModel
+    JOIN DIM_MANUFACTURER t4 
+        ON t3.IDManufacturer = t4.IDManufacturer
+    WHERE YEAR(t2.Date) IN (2009, 2010)
+    GROUP BY t4.Manufacturer_Name, YEAR(t2.Date)
+	)
+	SELECT
+		Manufacturer_Name,
+		Sales_Year,
+		Total_Sales
+	FROM ManufacturerSales
+	WHERE rnk = 2;
 
 --Q8--END
+
+
 --Q9--BEGIN
 	
+	-- Show the manufacturers that sold cellphones in 2010 but did not in 2009.
+	SELECT DISTINCT m.Manufacturer_Name
+	FROM FACT_TRANSACTIONS t
+	JOIN DIM_MODEL mo 
+		ON t.IDModel = mo.IDModel
+	JOIN DIM_MANUFACTURER m 
+		ON mo.IDManufacturer = m.IDManufacturer
+	WHERE YEAR(t.Date) = 2010
 
+	EXCEPT
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	SELECT DISTINCT m.Manufacturer_Name
+	FROM FACT_TRANSACTIONS t
+	JOIN DIM_MODEL mo 
+		ON t.IDModel = mo.IDModel
+	JOIN DIM_MANUFACTURER m 
+		ON mo.IDManufacturer = m.IDManufacturer
+	WHERE YEAR(t.Date) = 2009;
 
 --Q9--END
 
+
 --Q10--BEGIN
-	
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	-- Find top 100 customers and their average spend, average quantity by each year. Also find the percentage of change in their spend.
+	WITH CustomerYearly AS (
+    SELECT
+        t.IDCustomer,
+        YEAR(t.Date) AS Sales_Year,
+        AVG(t.TotalPrice) AS Avg_Spend,
+        AVG(t.Quantity) AS Avg_Quantity
+    FROM FACT_TRANSACTIONS t
+    GROUP BY t.IDCustomer, YEAR(t.Date)
+	),
+	TopCustomers AS (
+		SELECT TOP 100
+			IDCustomer,
+			SUM(Avg_Spend) AS Total_Spend
+		FROM CustomerYearly
+		GROUP BY IDCustomer
+		ORDER BY SUM(Avg_Spend) DESC
+	)
+	SELECT
+		cy.IDCustomer,
+		cy.Sales_Year,
+		cy.Avg_Spend,
+		cy.Avg_Quantity,
+		ROUND(
+			(cy.Avg_Spend 
+			 - LAG(cy.Avg_Spend) OVER (PARTITION BY cy.IDCustomer ORDER BY cy.Sales_Year))
+			* 100.0
+			/ LAG(cy.Avg_Spend) OVER (PARTITION BY cy.IDCustomer ORDER BY cy.Sales_Year),
+			2
+		) AS Spend_Percentage_Change
+	FROM CustomerYearly cy
+	JOIN TopCustomers tc
+		ON cy.IDCustomer = tc.IDCustomer
+	ORDER BY cy.IDCustomer, cy.Sales_Year;
 
 --Q10--END
 	
