@@ -41,7 +41,6 @@
 --Q4--BEGIN
 
 	-- Show the cheapest cellphone (Output should contain the price also)
-
 	SELECT top 1 Model_Name, Unit_price
 	FROM DIM_MODEL 
 	ORDER BY 2 ASC
